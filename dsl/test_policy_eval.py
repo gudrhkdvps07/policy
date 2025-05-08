@@ -49,7 +49,7 @@ policies = [
                 "id": "rule-allow-default",
                 "description": "기본 허용",
                 "condition": {
-                    "eq": ["file.ou", "OU=1학년,DC=school,DC=local"]
+                    "eq": ["file.file.ou", "OU=1학년,DC=school,DC=local"]
                 },
                 "action": {
                     "allow": "allow_all",

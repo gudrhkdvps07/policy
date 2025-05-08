@@ -11,23 +11,24 @@ logger = logging.getLogger(__name__)
 def resolve_field(field_path: str, context: dict):
     logger.debug(f"Resolving field: {field_path}")
     parts = field_path.split(".")
-    current = context
     
-    # 먼저 중첩된 구조로 시도
+    # 중첩된 구조로 시도
+    current = context
     for part in parts:
         logger.debug(f"Looking for nested part: {part} in {current}")
-        if isinstance(current, dict) and part in current:
-            current = current[part]
-        else:
-            # 중첩 구조가 실패하면 평면 구조로 시도
-            flat_field = f"file_{part}" if parts[0] == "file" else part
-            logger.debug(f"Trying flat field: {flat_field}")
-            if isinstance(context, dict) and flat_field in context:
-                current = context[flat_field]
+        if isinstance(current, dict):
+            if part in current:
+                current = current[part]
+            elif parts[0] == "file" and f"file_{part}" in context:
+                # file.ou -> file_ou 변환 시도
+                current = context[f"file_{part}"]
                 break
             else:
                 logger.debug(f"Field not found: {part}")
                 return None
+        else:
+            logger.debug(f"Not a dict: {current}")
+            return None
             
     logger.debug(f"Resolved value: {current}")
     return current
@@ -57,18 +58,18 @@ def evaluate_condition(condition: dict, context: dict) -> bool:
             return False
             
         if op == "eq": 
-            result = target == value
-            logger.debug(f"EQ result: {result}")
+            result = str(target) == str(value)
+            logger.debug(f"EQ result: {result} (comparing '{target}' with '{value}')")
             return result
-        if op == "ne": return target != value
+        if op == "ne": return str(target) != str(value)
         if op == "ge": return target >= value
         if op == "gt": return target > value
         if op == "le": return target <= value
         if op == "lt": return target < value
         if op == "in": 
             if isinstance(target, list):
-                return any(t in value for t in target)
-            return target in value
+                return any(str(t) in value for t in target)
+            return str(target) in value
             
     return False
 
