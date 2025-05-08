@@ -1,11 +1,11 @@
 {
   "policy_id": "",
   "policy_type": "",              // "OU", "GPO", "Group", "LDAP_QUERY" 중 하나
-  "target_dn": "",                // policy_type이 "OU", "GPO"일 때 사용
-  "target_name": "",              // policy_type이 "Group"일 때 사용
-  "ldap_filter": "",              // policy_type이 "LDAP_QUERY"일 때 사용 (예: (title=학생주임))
+  "target_dn": "",                // OU 또는 GPO 정책 대상 DN
+  "target_name": "",              // Group 정책 대상 이름
+  "ldap_filter": "",              // LDAP_QUERY 정책일 경우: 예) (title=학생주임)
 
-  "priority": 100,                // 낮을수록 우선순위 높음 
+  "priority": 100,
 
   "rules": [
     {
@@ -13,42 +13,60 @@
       "description": "",
 
       "condition": {
-        // 논리 연산자 "and", "or", "not"는 중첩 가능
+        // DSL 조건은 아래 연산자 조합으로 구성됩니다.
+        // 주요 연산자 위치와 사용 예:
+        // - "eq": ["user.rank", 1]       → user.rank가 1인지 검사
+        // - "ne": ["file.extension", "exe"] → file.extension이 "exe"가 아닌지
+        // - "gt": ["file.rank", 3]       → file.rank > 3
+        // - "lt": ["file.rank", 5]       → file.rank < 5
+        // - "ge": ["user.rank", 2]       → user.rank ≥ 2
+        // - "le": ["file.rank", 1]       → file.rank ≤ 1
+        // - "in": ["user.groups", ["관리자", "학생주임"]] → 그룹 포함 여부
+        // - "and": [ ... ], "or": [ ... ] → 복수 조건 조합
+        // - "not": { eq: [...] }         → 해당 조건 부정
+
         "and": [
           {
-            "eq": ["", null]      // 왼쪽: context 경로 (예: "file.extension"), 오른쪽: 비교값 (예: "exe")
+            "eq": ["", null]       // 문자열, 숫자, 불리언 등 동등성 비교
           },
           {
             "or": [
               {
-                "in": ["", []]    // 왼쪽: 배열이거나 문자열 경로, 오른쪽: 포함 여부 검사 리스트 (예: ["학생부", "정보부"])
+                "in": ["", []]     // 배열 포함 여부 (왼쪽: 배열 필드, 오른쪽: 포함 리스트)
               },
               {
-                "eq": ["", null]  // 예: ["user.rank", 1]
+                "ne": ["", null]   // 같지 않음 비교
               }
             ]
+          },
+          {
+            "gt": ["", null]       // 왼쪽 값이 오른쪽보다 큰 경우
+          },
+          {
+            "not": {
+              "eq": ["", null]     // NOT 조건: 조건이 false일 때 true로 처리됨
+            }
           }
         ]
-        // 지원 연산자: eq, ne, gt, lt, ge, le, in, and, or, not
       },
 
       "action": {
-        "allow": "",              // "read_only", "allow_all" 중 하나
-        "deny": "",               // "deny_all" 또는 비움
-        "rank_override": null     // 사용자의 rank를 일시적으로 덮어쓸 정수값 (예: 3), 없으면 null
+        "allow": "",               // "read_only", "allow_all"
+        "deny": "",                // "deny_all"
+        "rank_override": null      // 사용자 rank 재정의 시 사용
       },
 
       "exception": {
-        "allowed_users": [],      // 사용자 ID 리스트
-        "allowed_groups": [],     // 그룹 이름 리스트
-        "allowed_ous": [],        // OU 이름 리스트
-        "allowed_ranks": null     // 정수 또는 정수 리스트 (예: [1, 2]), 없으면 null
+        "allowed_users": [],
+        "allowed_groups": [],
+        "allowed_ous": [],
+        "allowed_ranks": null
       }
     }
   ],
 
   "policy_description": "",
   "is_active": true,
-  "created_at": "",               // "2025-05-08T12:00:00" 형식 권장
+  "created_at": "",
   "updated_at": ""
 }
