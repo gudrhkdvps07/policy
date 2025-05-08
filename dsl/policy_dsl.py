@@ -121,13 +121,13 @@ def get_file_metadata(file_path, db_path="policy.db"):
 def enrich_file_metadata(file_info: dict) -> dict:
     file_path = file_info.get("file_path", "")
     ext = os.path.splitext(file_path)[1].lower().lstrip(".")
-    file_info["extension"] = ext  # 평면 구조도 유지
-    file_info["file"] = {
-        "extension": ext,
-        "rank": file_info.get("file_rank"),
-        "ou": file_info.get("file_ou")
-    }
+
+    file_info["extension"] = ext           # ✅ 예: xlsx
+    file_info["rank"] = file_info.get("file_rank")
+    file_info["ou"] = file_info.get("file_ou")
+
     return file_info
+
 
 # -------------------- 예외 조건 --------------------
 
@@ -239,7 +239,7 @@ def evaluate_access_reason(user, file_info, policies):
 def evaluate_file_access(user_id, file_path, db_path="policy.db") -> bool:
     user_info = get_user_info(user_id, db_path)
     file_info = get_file_metadata(file_path, db_path)
-    file_info = enrich_file_metadata(file_info)  # ✅ 확장자 자동 삽입 및 중첩 구조 생성
+    file_info = enrich_file_metadata(file_info)  #확장자 자동 삽입 및 중첩 구조 생성
     policies = load_policies(db_path)
     result, reason = evaluate_access_reason(user_info, file_info, policies)
     logger.info(f"[접근 판단] user={user_id}, file={file_path} → {'ALLOW' if result else 'DENY'} ({reason})")
