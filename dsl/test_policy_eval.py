@@ -1,5 +1,10 @@
 from datetime import datetime
-from policy_dsl import evaluate_access_reason  
+from policy_dsl import evaluate_access_reason, enrich_file_metadata
+import logging
+
+# 로깅 설정
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # 사용자 정보 (context["user"])
 user = {
@@ -16,6 +21,9 @@ file_info = {
     "file_rank": 2,
     "file_path": "C:/문서/시험지.xlsx"
 }
+
+# 파일 메타데이터 보강
+file_info = enrich_file_metadata(file_info)
 
 # 테스트용 정책 리스트 (in-memory)
 policies = [
@@ -41,7 +49,7 @@ policies = [
                 "id": "rule-allow-default",
                 "description": "기본 허용",
                 "condition": {
-                    "eq": ["file_ou", "OU=1학년,DC=school,DC=local"]
+                    "eq": ["file.ou", "OU=1학년,DC=school,DC=local"]
                 },
                 "action": {
                     "allow": "allow_all",
