@@ -1,6 +1,7 @@
 import sqlite3
 import json
 import logging
+import os  # ⬅️ 추가: 확장자 추출용
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -79,6 +80,13 @@ def get_file_metadata(file_path, db_path="policy.db"):
         "file_path": file_path
     }
 
+# ✅ 추가: 파일 경로에서 확장자 추출
+def enrich_file_metadata(file_info: dict) -> dict:
+    file_path = file_info.get("file_path", "")
+    ext = os.path.splitext(file_path)[1].lower().lstrip(".")
+    file_info["extension"] = ext
+    return file_info
+
 # -------------------- 예외 조건 --------------------
 
 def evaluate_exceptions(user, user_groups, exception):
@@ -119,7 +127,7 @@ def merge_policy_rules(policies: list) -> list:
     for policy in sorted_policies:
         for rule in policy.get("rules", []):
             key = extract_condition_key(rule)
-            if key:  # 충돌되는 필드는 우선순위 낮은 정책이 덮어쓰기됨
+            if key:
                 field_to_rule[key] = rule
 
     return list(field_to_rule.values())
@@ -130,7 +138,6 @@ def evaluate_access_reason(user, file_info, policies):
     context = {"user": user, "file": file_info}
     user_groups = user.get("groups", [])
 
-    # 정책 병합
     merged_rules = merge_policy_rules(policies)
 
     for rule in merged_rules:
@@ -167,6 +174,7 @@ def evaluate_access_reason(user, file_info, policies):
 def evaluate_file_access(user_id, file_path, db_path="policy.db") -> bool:
     user_info = get_user_info(user_id, db_path)
     file_info = get_file_metadata(file_path, db_path)
+    file_info = enrich_file_metadata(file_info)  # 확장자 자동 삽입
     policies = load_policies(db_path)
     result, reason = evaluate_access_reason(user_info, file_info, policies)
     logger.info(f"[접근 판단] user={user_id}, file={file_path} → {'ALLOW' if result else 'DENY'} ({reason})")

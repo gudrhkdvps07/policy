@@ -5,7 +5,7 @@
   "target_name": "",              // Group 정책 대상 이름
   "ldap_filter": "",              // LDAP_QUERY 정책일 경우: 예) (title=학생주임)
 
-  "priority": 100,
+  "priority": 0,
 
   "rules": [
     {
