@@ -216,46 +216,57 @@ def evaluate_access_reason(user, file_info, policies):
     user_rank = user.get("rank", 0)
     ad_groups = user.get("groups", [])
     
-    for policy_type in ["GPO", "Group", "OU"]:
-        for policy in policies:
-            if not policy.get("is_active"):
+    # 정책 우선순위 정의 (낮을수록 높은 우선순위)
+    policy_priority = {
+        "GPO": 1,
+        "Group": 2,
+        "OU": 3,
+        "User": 4
+    }
+    
+    # 정책을 우선순위별로 정렬
+    sorted_policies = sorted(policies, 
+                           key=lambda x: policy_priority.get(x.get("policy_type", ""), 999))
+    
+    for policy in sorted_policies:
+        if not policy.get("is_active"):
+            continue
+            
+        policy_type = policy.get("policy_type")
+        if not is_policy_applicable(policy_type, policy, user, file_info, ad_groups):
+            continue
+
+        policy_id = policy.get("policy_id", "unknown")
+        action = policy.get("action", {})
+        exception = policy.get("exception", {})
+        conditions = policy.get("conditions", [])
+
+        # 조건 평가
+        if not evaluate_conditions(conditions, user, file_info, ad_groups):
+            continue
+
+        effective_rank = user_rank
+        if policy_type == "GPO" and "rank_override" in action:
+            try:
+                effective_rank = int(action.get("rank_override"))
+            except (ValueError, TypeError):
+                effective_rank = user_rank
+
+        if file_rank is not None and effective_rank < file_rank:
+            continue
+
+        if exception:
+            if evaluate_exceptions(user, ad_groups, exception):
+                return True, f"허용됨: 예외 조건 만족 (policy={policy_id})"
+            else:
                 continue
-            if policy.get("policy_type") != policy_type:
-                continue
-            if not is_policy_applicable(policy_type, policy, user, file_info, ad_groups):
-                continue
 
-            policy_id = policy.get("policy_id", "unknown")
-            action = policy.get("action", {})
-            exception = policy.get("exception", {})
-            conditions = policy.get("conditions", [])
+        if action.get("deny") == "deny_all":
+            return False, f"차단됨: 정책({policy_id})에서 deny_all 명시됨"
 
-            # 조건 평가
-            if not evaluate_conditions(conditions, user, file_info, ad_groups):
-                continue
-
-            effective_rank = user_rank
-            if policy_type == "GPO" and "rank_override" in action:
-                try:
-                    effective_rank = int(action.get("rank_override"))
-                except (ValueError, TypeError):
-                    effective_rank = user_rank
-
-            if file_rank is not None and effective_rank < file_rank:
-                continue
-
-            if exception:
-                if evaluate_exceptions(user, ad_groups, exception):
-                    return True, f"허용됨: 예외 조건 만족 (policy={policy_id})"
-                else:
-                    continue
-
-            if action.get("deny") == "deny_all":
-                return False, f"차단됨: 정책({policy_id})에서 deny_all 명시됨"
-
-            allow_type = action.get("allow")
-            if allow_type in ["read_only", "allow_all"]:
-                return True, f"허용됨: 정책({policy_id})에서 {allow_type} 허용됨"
+        allow_type = action.get("allow")
+        if allow_type in ["read_only", "allow_all"]:
+            return True, f"허용됨: 정책({policy_id})에서 {allow_type} 허용됨"
 
     return False, "차단됨: 적용 가능한 정책 없음 또는 허용 조건 없음"
 

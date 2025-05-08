@@ -1,0 +1,47 @@
+{
+  "policy_id": "",
+  "policy_type": "",  // "GPO", "Group", "OU", "User" 중 하나
+  "target_dn": "",    // OU나 GPO의 경우 DN
+  "target_name": "",  // Group이나 User의 경우 이름
+
+  "conditions": {
+    "operator": "AND",  // "AND" 또는 "OR"
+    "values": [
+      {
+        "type": "user_rank",  // "user_rank", "file_rank", "user_group", "user_ou", "file_ou" 중 하나
+        "value": 0
+      },
+      {
+        "operator": "OR",  // 중첩된 조건도 가능
+        "values": [
+          {
+            "type": "user_group",
+            "value": ""
+          },
+          {
+            "type": "user_ou",
+            "value": ""
+          }
+        ]
+      }
+    ]
+  },
+
+  "action": {
+    "allow": "",      // "read_only", "allow_all" 중 하나
+    "deny": "",       // "deny_all"
+    "rank_override": null  // 정수값 또는 null
+  },
+
+  "exception": {
+    "allowed_users": [],    // 사용자 ID 리스트
+    "allowed_groups": [],   // 그룹 이름 리스트
+    "allowed_ous": [],      // OU 이름 리스트
+    "allowed_ranks": null   // 정수 또는 정수 리스트
+  },
+
+  "policy_description": "",
+  "is_active": true,
+  "created_at": "",
+  "updated_at": ""
+} 
