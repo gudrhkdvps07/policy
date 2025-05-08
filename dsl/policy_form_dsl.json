@@ -1,47 +1,54 @@
 {
   "policy_id": "",
-  "policy_type": "",  // "GPO", "Group", "OU", "User" 중 하나
-  "target_dn": "",    // OU나 GPO의 경우 DN
-  "target_name": "",  // Group이나 User의 경우 이름
+  "policy_type": "",              // "OU", "GPO", "Group", "LDAP_QUERY" 중 하나
+  "target_dn": "",                // policy_type이 "OU", "GPO"일 때 사용
+  "target_name": "",              // policy_type이 "Group"일 때 사용
+  "ldap_filter": "",              // policy_type이 "LDAP_QUERY"일 때 사용 (예: (title=학생주임))
 
-  "conditions": {
-    "operator": "AND",  // "AND" 또는 "OR"
-    "values": [
-      {
-        "type": "user_rank",  // "user_rank", "file_rank", "user_group", "user_ou", "file_ou" 중 하나
-        "value": 0
-      },
-      {
-        "operator": "OR",  // 중첩된 조건도 가능
-        "values": [
+  "priority": 100,                // 낮을수록 우선순위 높음 
+
+  "rules": [
+    {
+      "id": "",
+      "description": "",
+
+      "condition": {
+        // 논리 연산자 "and", "or", "not"는 중첩 가능
+        "and": [
           {
-            "type": "user_group",
-            "value": ""
+            "eq": ["", null]      // 왼쪽: context 경로 (예: "file.extension"), 오른쪽: 비교값 (예: "exe")
           },
           {
-            "type": "user_ou",
-            "value": ""
+            "or": [
+              {
+                "in": ["", []]    // 왼쪽: 배열이거나 문자열 경로, 오른쪽: 포함 여부 검사 리스트 (예: ["학생부", "정보부"])
+              },
+              {
+                "eq": ["", null]  // 예: ["user.rank", 1]
+              }
+            ]
           }
         ]
+        // 지원 연산자: eq, ne, gt, lt, ge, le, in, and, or, not
+      },
+
+      "action": {
+        "allow": "",              // "read_only", "allow_all" 중 하나
+        "deny": "",               // "deny_all" 또는 비움
+        "rank_override": null     // 사용자의 rank를 일시적으로 덮어쓸 정수값 (예: 3), 없으면 null
+      },
+
+      "exception": {
+        "allowed_users": [],      // 사용자 ID 리스트
+        "allowed_groups": [],     // 그룹 이름 리스트
+        "allowed_ous": [],        // OU 이름 리스트
+        "allowed_ranks": null     // 정수 또는 정수 리스트 (예: [1, 2]), 없으면 null
       }
-    ]
-  },
-
-  "action": {
-    "allow": "",      // "read_only", "allow_all" 중 하나
-    "deny": "",       // "deny_all"
-    "rank_override": null  // 정수값 또는 null
-  },
-
-  "exception": {
-    "allowed_users": [],    // 사용자 ID 리스트
-    "allowed_groups": [],   // 그룹 이름 리스트
-    "allowed_ous": [],      // OU 이름 리스트
-    "allowed_ranks": null   // 정수 또는 정수 리스트
-  },
+    }
+  ],
 
   "policy_description": "",
   "is_active": true,
-  "created_at": "",
+  "created_at": "",               // "2025-05-08T12:00:00" 형식 권장
   "updated_at": ""
-} 
+}

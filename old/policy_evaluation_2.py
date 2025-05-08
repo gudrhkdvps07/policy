@@ -94,21 +94,6 @@ def validate_policy(policy):
             if "allowed_rank" in exception and not isinstance(exception["allowed_rank"], int):
                 raise ValueError("allowed_rank는 정수여야 함")
 
-        # OR/AND 연산자 검증 추가
-        conditions = policy.get("conditions", [])
-        if conditions:
-            for condition in conditions:
-                if not isinstance(condition, dict):
-                    raise ValueError("조건은 딕셔너리여야 함")
-                if "operator" not in condition:
-                    raise ValueError("조건에 operator가 없음")
-                if condition["operator"] not in ["AND", "OR"]:
-                    raise ValueError("operator는 AND 또는 OR여야 함")
-                if "values" not in condition:
-                    raise ValueError("조건에 values가 없음")
-                if not isinstance(condition["values"], list):
-                    raise ValueError("values는 리스트여야 함")
-
         return True
 
     except (AssertionError, ValueError) as e:
@@ -164,114 +149,52 @@ def evaluate_exceptions(user, user_groups, exception):
     return True
 
 
-# 7. 조건 평가 함수 (새로 추가)
-# OR/AND 연산을 사용하여 조건을 평가
-def evaluate_conditions(conditions, user, file_info, ad_groups):
-    if not conditions:
-        return True
-    
-    for condition in conditions:
-        operator = condition.get("operator")
-        values = condition.get("values", [])
-        
-        if operator == "AND":
-            # AND 연산: 모든 조건이 참이어야 함
-            for value in values:
-                if not evaluate_single_condition(value, user, file_info, ad_groups):
-                    return False
-            return True
-        elif operator == "OR":
-            # OR 연산: 하나라도 참이면 됨
-            for value in values:
-                if evaluate_single_condition(value, user, file_info, ad_groups):
-                    return True
-            return False
-    
-    return True
-
-
-# 8. 단일 조건 평가 함수 (새로 추가)
-# 단일 조건을 평가
-def evaluate_single_condition(condition, user, file_info, ad_groups):
-    condition_type = condition.get("type")
-    
-    if condition_type == "user_rank":
-        return user.get("rank", 0) >= condition.get("value", 0)
-    elif condition_type == "file_rank":
-        return file_info.get("file_rank", 0) <= condition.get("value", 0)
-    elif condition_type == "user_group":
-        return condition.get("value") in ad_groups
-    elif condition_type == "user_ou":
-        return user.get("ou") == condition.get("value")
-    elif condition_type == "file_ou":
-        return file_info.get("file_ou") == condition.get("value")
-    
-    return False
-
-
-# 9. 접근 평가 메인 함수
+# 7. 접근 평가 메인 함수
 # 정책 목록 기반으로 접근 허용/차단 판단
 def evaluate_access_reason(user, file_info, policies):
     file_rank = file_info.get("file_rank")
     user_rank = user.get("rank", 0)
     ad_groups = user.get("groups", [])
-    
-    # 정책 우선순위 정의 (낮을수록 높은 우선순위)
-    policy_priority = {
-        "GPO": 1,
-        "Group": 2,
-        "OU": 3,
-        "User": 4
-    }
-    
-    # 정책을 우선순위별로 정렬
-    sorted_policies = sorted(policies, 
-                           key=lambda x: policy_priority.get(x.get("policy_type", ""), 999))
-    
-    for policy in sorted_policies:
-        if not policy.get("is_active"):
-            continue
-            
-        policy_type = policy.get("policy_type")
-        if not is_policy_applicable(policy_type, policy, user, file_info, ad_groups):
-            continue
-
-        policy_id = policy.get("policy_id", "unknown")
-        action = policy.get("action", {})
-        exception = policy.get("exception", {})
-        conditions = policy.get("conditions", [])
-
-        # 조건 평가
-        if not evaluate_conditions(conditions, user, file_info, ad_groups):
-            continue
-
-        effective_rank = user_rank
-        if policy_type == "GPO" and "rank_override" in action:
-            try:
-                effective_rank = int(action.get("rank_override"))
-            except (ValueError, TypeError):
-                effective_rank = user_rank
-
-        if file_rank is not None and effective_rank < file_rank:
-            continue
-
-        if exception:
-            if evaluate_exceptions(user, ad_groups, exception):
-                return True, f"허용됨: 예외 조건 만족 (policy={policy_id})"
-            else:
+    for policy_type in ["GPO", "Group", "OU"]:
+        for policy in policies:
+            if not policy.get("is_active"):
+                continue
+            if policy.get("policy_type") != policy_type:
+                continue
+            if not is_policy_applicable(policy_type, policy, user, file_info, ad_groups):
                 continue
 
-        if action.get("deny") == "deny_all":
-            return False, f"차단됨: 정책({policy_id})에서 deny_all 명시됨"
+            policy_id = policy.get("policy_id", "unknown")
+            action = policy.get("action", {})
+            exception = policy.get("exception", {})
 
-        allow_type = action.get("allow")
-        if allow_type in ["read_only", "allow_all"]:
-            return True, f"허용됨: 정책({policy_id})에서 {allow_type} 허용됨"
+            effective_rank = user_rank
+            if policy_type == "GPO" and "rank_override" in action:
+                try:
+                    effective_rank = int(action.get("rank_override"))
+                except (ValueError, TypeError):
+                    effective_rank = user_rank
+
+            if file_rank is not None and effective_rank < file_rank:
+                continue
+
+            if exception:
+                if evaluate_exceptions(user, ad_groups, exception):
+                    return True, f"허용됨: 예외 조건 만족 (policy={policy_id})"
+                else:
+                    continue
+
+            if action.get("deny") == "deny_all":
+                return False, f"차단됨: 정책({policy_id})에서 deny_all 명시됨"
+
+            allow_type = action.get("allow")
+            if allow_type in ["read_only", "allow_all"]:
+                return True, f"허용됨: 정책({policy_id})에서 {allow_type} 허용됨"
 
     return False, "차단됨: 적용 가능한 정책 없음 또는 허용 조건 없음"
 
 
-# 10. 외부 진입 함수 (DLL 호출 지점)
+# 8. 외부 진입 함수 (DLL 호출 지점)
 def evaluate_file_access(user_id, file_path, db_path="policy.db") -> bool:
     user_info = get_user_info(user_id, db_path)
     file_info = get_file_metadata(file_path, db_path)
