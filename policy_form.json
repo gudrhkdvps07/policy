@@ -1,0 +1,57 @@
+{
+  "policy_id": "",
+  "policy_type": "",                   
+  "target_dn": "",                     
+  "target_name": "",                   
+
+  "conditions": [
+    {
+      "operator": "AND",
+      "values": [
+        {
+          "type": "user_rank",
+          "value": 0
+        },
+        {
+          "type": "file_rank",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "operator": "OR",
+      "values": [
+        {
+          "type": "user_group",
+          "value": ""
+        },
+        {
+          "type": "user_ou",
+          "value": ""
+        },
+        {
+          "type": "file_ou",
+          "value": ""
+        }
+      ]
+    }
+  ],
+
+  "action": {
+    "allow": "",                      
+    "deny": "",                       
+    "rank_override": null             
+  },
+
+  "exception": {
+    "allowed_users": [],              
+    "allowed_groups": [],           
+    "allowed_ous": [],               
+    "allowed_ranks": null          
+  },
+
+  "policy_description": "",
+  "is_active": true,                  
+  "created_at": "",                   
+  "updated_at": ""                    
+}
