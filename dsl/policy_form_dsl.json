@@ -5,7 +5,8 @@
   "target_name": "",              // Group 정책 대상 이름
   "ldap_filter": "",              // LDAP_QUERY 정책일 경우: 예) (title=학생주임)
 
-  "priority": 0,
+  "priority": 0,                  // 정책 우선순위 (ou들은 200번대, 엘답 쿼리부분은 100번대로 결정.)
+                                  // 이 부분은 미리 정책 저장 전에 처리해야함.
 
   "rules": [
     {
