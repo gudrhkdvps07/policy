@@ -6,7 +6,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 def run_test_case(test_name, user, file_info, policies, expected_result):
-    file_info = enrich_file_metadata(file_info)  # ✅ 모든 테스트에서 확장 필드 포함
+    file_info = enrich_file_metadata(file_info) 
     print(f"\n=== 테스트 케이스: {test_name} ===")
     print(f"사용자: {user}")
     print(f"파일: {file_info}")
@@ -37,7 +37,7 @@ def test_basic_allow():
 
 def test_deny_exe():
     user = {"id": "user1", "rank": 3, "ou": "OU=IT", "groups": ["IT_Staff"]}
-    file_info = {"file_path": "test.exe", "file_ou": "OU=IT", "file_rank": 2}
+    file_info = {"file_path": "c://downloads/test.exe", "file_ou": "OU=IT", "file_rank": 2}
     policies = [{
         "policy_id": "POL002",
         "is_active": True,

@@ -140,7 +140,6 @@ def enrich_file_metadata(file_info: dict) -> dict:
 
 
 # 예외 조건
-
 def evaluate_exceptions(user, user_groups, exception):
     allowed_users = exception.get("allowed_users", [])
     allowed_groups = exception.get("allowed_groups", [])
