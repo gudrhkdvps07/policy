@@ -51,7 +51,7 @@ def get_file_metadata(file_path, db_path="policy.db"):
     }
 
 # 확장자 + 중첩 구조 자동 생성
-def enrich_file_metadata(file_info: dict) -> dict:
+def prepare_file_context(file_info: dict) -> dict:
     file_path = file_info.get("file_path", "")
     ext = os.path.splitext(file_path)[1].lower().lstrip(".")
 
@@ -231,7 +231,7 @@ def evaluate_access_reason(user, file_info, policies):
 def evaluate_file_access(user_id, file_path, db_path="policy.db") -> bool:
     user_info = get_user_info(user_id, db_path)
     file_info = get_file_metadata(file_path, db_path)
-    file_info = enrich_file_metadata(file_info)
+    file_info = prepare_file_context(file_info)
     policies = load_policies(db_path)
     result, reason = evaluate_access_reason(user_info, file_info, policies)
     logger.info(f"[접근 판단] user={user_id}, file={file_path} → {'ALLOW' if result else 'DENY'} ({reason})")
