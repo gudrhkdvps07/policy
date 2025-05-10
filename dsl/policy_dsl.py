@@ -6,6 +6,63 @@ import os
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+# DB 로딩
+def load_policies(db_path="policy.db"):
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute("SELECT policy_json FROM policies WHERE is_active = 1")
+        rows = cur.fetchall()
+        conn.close()
+        return [json.loads(row[0]) for row in rows]
+    except Exception as error:
+        logger.error(f"[정책 로드 실패] DB={db_path}, 오류: {error}")
+        raise
+
+def get_user_info(user_id, db_path="policy.db"):
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("SELECT rank, dn, ou, groups_json FROM users WHERE user_id = ?", (user_id,))
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        raise ValueError(f"사용자 {user_id} 정보를 찾을 수 없음")
+    return {
+        "id": user_id,
+        "rank": row[0],
+        "dn": row[1],
+        "ou": row[2],
+        "groups": json.loads(row[3])
+    }
+
+def get_file_metadata(file_path, db_path="policy.db"):
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("SELECT file_ou, file_rank FROM files WHERE path = ?", (file_path,))
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        raise ValueError(f"파일 {file_path} 메타데이터 없음")
+    return {
+        "file_ou": row[0],
+        "file_rank": row[1],
+        "file_path": file_path
+    }
+
+# 확장자 + 중첩 구조 자동 생성
+def prepare_file_context(file_info: dict) -> dict:
+    file_path = file_info.get("file_path", "")
+    ext = os.path.splitext(file_path)[1].lower().lstrip(".")
+
+    file_info["extension"] = ext      
+    file_info["rank"] = file_info.get("file_rank")
+    file_info["ou"] = file_info.get("file_ou")
+
+    return file_info
+
+
+
 # 조건 평가
 def resolve_field(field_path: str, context: dict):
     logger.debug(f"Resolving field: {field_path}")
@@ -81,62 +138,6 @@ def evaluate_condition(condition: dict, context: dict) -> bool:
             return str(left) in right
 
     return False
-
-
-# DB 로딩
-
-def load_policies(db_path="policy.db"):
-    try:
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-        cur.execute("SELECT policy_json FROM policies WHERE is_active = 1")
-        rows = cur.fetchall()
-        conn.close()
-        return [json.loads(row[0]) for row in rows]
-    except Exception as error:
-        logger.error(f"[정책 로드 실패] DB={db_path}, 오류: {error}")
-        raise
-
-def get_user_info(user_id, db_path="policy.db"):
-    conn = sqlite3.connect(db_path)
-    cur = conn.cursor()
-    cur.execute("SELECT rank, dn, ou, groups_json FROM users WHERE user_id = ?", (user_id,))
-    row = cur.fetchone()
-    conn.close()
-    if not row:
-        raise ValueError(f"사용자 {user_id} 정보를 찾을 수 없음")
-    return {
-        "id": user_id,
-        "rank": row[0],
-        "dn": row[1],
-        "ou": row[2],
-        "groups": json.loads(row[3])
-    }
-
-def get_file_metadata(file_path, db_path="policy.db"):
-    conn = sqlite3.connect(db_path)
-    cur = conn.cursor()
-    cur.execute("SELECT file_ou, file_rank FROM files WHERE path = ?", (file_path,))
-    row = cur.fetchone()
-    conn.close()
-    if not row:
-        raise ValueError(f"파일 {file_path} 메타데이터 없음")
-    return {
-        "file_ou": row[0],
-        "file_rank": row[1],
-        "file_path": file_path
-    }
-
-# 확장자 + 중첩 구조 자동 생성
-def enrich_file_metadata(file_info: dict) -> dict:
-    file_path = file_info.get("file_path", "")
-    ext = os.path.splitext(file_path)[1].lower().lstrip(".")
-
-    file_info["extension"] = ext      
-    file_info["rank"] = file_info.get("file_rank")
-    file_info["ou"] = file_info.get("file_ou")
-
-    return file_info
 
 
 # 예외 조건
@@ -230,7 +231,7 @@ def evaluate_access_reason(user, file_info, policies):
 def evaluate_file_access(user_id, file_path, db_path="policy.db") -> bool:
     user_info = get_user_info(user_id, db_path)
     file_info = get_file_metadata(file_path, db_path)
-    file_info = enrich_file_metadata(file_info)
+    file_info = prepare_file_context(file_info)
     policies = load_policies(db_path)
     result, reason = evaluate_access_reason(user_info, file_info, policies)
     logger.info(f"[접근 판단] user={user_id}, file={file_path} → {'ALLOW' if result else 'DENY'} ({reason})")
