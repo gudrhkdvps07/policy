@@ -1,12 +1,12 @@
 from datetime import datetime
-from policy_dsl import evaluate_access_reason, enrich_file_metadata
+from policy_dsl import evaluate_access_reason, get_file_metadata
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 def run_test_case(test_name, user, file_info, policies, expected_result):
-    file_info = enrich_file_metadata(file_info) 
+    file_info = get_file_metadata(file_info) 
     print(f"\n=== 테스트 케이스: {test_name} ===")
     print(f"사용자: {user}")
     print(f"파일: {file_info}")
