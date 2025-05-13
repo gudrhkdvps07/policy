@@ -41,11 +41,11 @@ def get_user_info(user_id, db_path="policy.db"):
     }
 
 def get_file_metadata(dll_file_path, db_path="policy.db"):
-    file_name = os.path.basename(dll_file_path)  # DLL이 전달한 전체 경로에서 파일명만 추출
+    file_name = os.path.basename(dll_file_path)
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     cur.execute(
-        "SELECT file_ou, file_rank, is_private FROM files WHERE file_name = ?",
+        "SELECT file_ou, file_rank, is_private, owner_user_id FROM files WHERE file_name = ?",
         (file_name,)
     )
     row = cur.fetchone()
@@ -56,6 +56,7 @@ def get_file_metadata(dll_file_path, db_path="policy.db"):
         "file_ou": row[0],
         "file_rank": row[1],
         "is_private": bool(row[2]),
+        "owner_user_id": row[3],
         "file_name": file_name
     }
 
@@ -66,6 +67,7 @@ def prepare_file_context(file_info: dict) -> dict:
     file_info["rank"] = file_info.get("file_rank")
     file_info["ou"] = file_info.get("file_ou")
     file_info["is_private"] = file_info.get("is_private", False)
+    file_info["name"] = file_name
     return file_info
 
 def get_value_by_path(field_path: str, context: dict):
@@ -145,6 +147,10 @@ def evaluate_exceptions(user, user_groups, exception):
     return True
 
 def evaluate_access_reason(user, file_info, policies) -> AccessDecision:
+    if file_info.get("file_rank") == 9999 and file_info.get("is_private") and file_info.get("owner_user_id") == user.get("id"):
+        logger.debug("[개인 문서 우선 허용] 사용자 소유 개인 문서")
+        return AccessDecision.ALLOW_ALL
+
     policies = sorted(policies, key=lambda p: p.get("priority", 999))
     context = {"user": user, "file": file_info}
     user_groups = user.get("groups", [])
@@ -156,13 +162,6 @@ def evaluate_access_reason(user, file_info, policies) -> AccessDecision:
             if not evaluate_condition(rule.get("condition", {}), context):
                 continue
 
-            # 우선순위 1 개인 예외
-            if policy.get("priority") == 1:
-                exception = rule.get("exception", {})
-                if exception and evaluate_exceptions(user, user_groups, exception):
-                    return AccessDecision(rule.get("action", {}).get("allow", "deny_all"))
-
-            # 일반 예외
             exception = rule.get("exception", {})
             if exception and evaluate_exceptions(user, user_groups, exception):
                 return AccessDecision(rule.get("action", {}).get("allow", "deny_all"))

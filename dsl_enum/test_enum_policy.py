@@ -13,9 +13,30 @@ def run_test_case(test_name, user, file_info, policies, expected: AccessDecision
     """
     file_info = prepare_file_context(file_info)
     print(f"\n=== 테스트: {test_name} ===")
-    result = evaluate_access_reason(user, file_info, policies)
+
+    # 디버그 출력을 위한 로그 캡처
+    import io
+    import contextlib
+    debug_output = io.StringIO()
+    with contextlib.redirect_stdout(debug_output):
+        result = evaluate_access_reason(user, file_info, policies)
+
     ok = result == expected
     print(f"결과 ➜ {result.name} | 예상 ➜ {expected.name} | {'✅ PASS' if ok else '❌ FAIL'}")
+
+    if not ok:
+        print("📌 [디버그 정보]")
+        print(f"📁 file_info: {file_info}")
+        print(f"👤 user_info: {user}")
+        print(f"📜 정책 수: {len(policies)}")
+        for p in policies:
+            print(f" - policy_id: {p.get('policy_id')}, priority: {p.get('priority')}, active: {p.get('is_active', True)}")
+            for r in p.get("rules", []):
+                print(f"   · rule_id: {r.get('id')}, condition: {r.get('condition')}, exception: {r.get('exception')}, action: {r.get('action')}")
+
+        print("\n🧩 내부 평가 로그 (evaluate_access_reason 내부)")
+        print(debug_output.getvalue())
+
     return ok
 
 
@@ -251,7 +272,7 @@ def test_personal_file_access():
                 "is_active": True,
                 "rules": [{
                     "id": "R_PRIVATE",
-                    "condition": {"eq": ["file.file_name", "private.txt"]},
+                    "condition": {"eq": ["file.name", "private.txt"]},
                     "exception": {"allowed_users": ["user01"]},
                     "action": {"allow": "allow_all"}
                 }]
@@ -323,7 +344,7 @@ def test_personal_but_not_allowed():
             "is_active": True,
             "rules": [{
                 "id": "R_DENIED_PERSONAL",
-                "condition": {"eq": ["file.file_name", "private.txt"]},
+                "condition": {"eq": ["file.name", "private.txt"]},
                 "exception": {"allowed_users": ["someone_else"]},
                 "action": {"allow": "allow_all"}
             }]
