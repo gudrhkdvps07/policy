@@ -156,20 +156,25 @@ def evaluate_access_reason(user, file_info, policies) -> AccessDecision:
     user_groups = user.get("groups", [])
 
     for policy in policies:
-        if not policy.get("is_active", True):
+        if not policy.get("is_active", True):   #policy 가 활성된 상태인지
             continue
         for rule in policy.get("rules", []):
-            if not evaluate_condition(rule.get("condition", {}), context):
+            if not evaluate_condition(rule.get("condition", {}), context):   #조건 불일치시
                 continue
 
             exception = rule.get("exception", {})
-            if exception and evaluate_exceptions(user, user_groups, exception):
-                return AccessDecision(rule.get("action", {}).get("allow", "deny_all"))
-
+            action = rule.get("action", {})
             effective_rank = user.get("rank", 0)
             file_rank = file_info.get("file_rank", 0)
-            action = rule.get("action", {})
 
+            # 예외 조건이 존재하고 만족하지 못하면 건너뜀
+            if exception:
+                if not evaluate_exceptions(user, user_groups, exception):
+                    continue
+                else:
+                    return AccessDecision(action.get("allow", "deny_all"))
+
+            # # 예외와 무관하게 rank_override가 존재하면 rank 비교 전에 적용
             if "rank_override" in action and action["rank_override"] is not None:
                 try:
                     effective_rank = int(action["rank_override"])
