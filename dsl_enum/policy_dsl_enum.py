@@ -147,9 +147,14 @@ def evaluate_exceptions(user, user_groups, exception):
     return True
 
 def evaluate_access_reason(user, file_info, policies) -> AccessDecision:
-    if file_info.get("file_rank") == 9999 and file_info.get("is_private") and file_info.get("owner_user_id") == user.get("id"):
-        logger.debug("[개인 문서 우선 허용] 사용자 소유 개인 문서")
-        return AccessDecision.ALLOW_ALL
+    if file_info.get("file_rank") == 9999 :
+        if file_info.get("is_private") :
+            if file_info.get("owner_user_id") == user.get("id"):
+                logger.debug("[개인 문서 우선 허용] 사용자 소유 개인 문서")
+                return AccessDecision.ALLOW_ALL
+            else:
+             logger.debug("[개인 문서 차단] 다른 사용자의 비공개 문서 접근 시도")
+             AccessDecision.DENY    
 
     policies = sorted(policies, key=lambda p: p.get("priority", 999))
     context = {"user": user, "file": file_info}
@@ -172,7 +177,7 @@ def evaluate_access_reason(user, file_info, policies) -> AccessDecision:
                 if not evaluate_exceptions(user, user_groups, exception):
                     continue
                 else:
-                    return AccessDecision(action.get("allow", "deny_all"))
+                    return AccessDecision(action.get("allow", "deny_all"))  
 
             # # 예외와 무관하게 rank_override가 존재하면 rank 비교 전에 적용
             if "rank_override" in action and action["rank_override"] is not None:
